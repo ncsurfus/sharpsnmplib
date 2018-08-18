@@ -32,6 +32,7 @@ using System.Globalization;
 using System.Net;
 using Lextm.SharpSnmpLib.Security;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Lextm.SharpSnmpLib.Messaging
 {
@@ -129,7 +130,7 @@ namespace Lextm.SharpSnmpLib.Messaging
         /// <param name="community">Community name.</param>
         /// <param name="variables">Variable binds.</param>
         /// <returns></returns>
-        public static async Task<IList<Variable>> SetAsync(VersionCode version, IPEndPoint endpoint, OctetString community, IList<Variable> variables)
+        public static async Task<IList<Variable>> SetAsync(VersionCode version, IPEndPoint endpoint, OctetString community, IList<Variable> variables, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (endpoint == null)
             {
@@ -152,7 +153,7 @@ namespace Lextm.SharpSnmpLib.Messaging
             }
 
             var message = new SetRequestMessage(RequestCounter.NextId, version, community, variables);
-            var response = await message.GetResponseAsync(endpoint).ConfigureAwait(false);
+            var response = await message.GetResponseAsync(endpoint, cancellationToken).ConfigureAwait(false);
             var pdu = response.Pdu();
             if (pdu.ErrorStatus.ToInt32() != 0)
             {

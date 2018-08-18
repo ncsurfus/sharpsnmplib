@@ -594,7 +594,7 @@ namespace Lextm.SharpSnmpLib.Messaging
         /// <param name="request">The <see cref="ISnmpMessage"/>.</param>
         /// <param name="receiver">Port number.</param>
         /// <returns></returns>
-        public static async Task<ISnmpMessage> GetResponseAsync(this ISnmpMessage request, IPEndPoint receiver)
+        public static async Task<ISnmpMessage> GetResponseAsync(this ISnmpMessage request, IPEndPoint receiver, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (request == null)
             {
@@ -612,9 +612,20 @@ namespace Lextm.SharpSnmpLib.Messaging
                 throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "not a request message: {0}", code));
             }
 
+            var tcs = new TaskCompletionSource<bool>();
+
+            using (var cancel = cancellationToken.Register(() => tcs.SetCanceled()))
             using (var socket = receiver.GetSocket())
             {
-                return await request.GetResponseAsync(receiver, socket).ConfigureAwait(false);
+                var response = request.GetResponseAsync(receiver, socket);
+                var result = await Task.WhenAny(tcs.Task, response).ConfigureAwait(false);
+                if(result == tcs.Task)
+                {
+                    // This should always be true....
+                    // Otherwise throw your own.
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                return await response.ConfigureAwait(false);
             }
         }
 
